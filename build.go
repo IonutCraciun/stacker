@@ -21,15 +21,16 @@ import (
 )
 
 type BuildArgs struct {
-	Config       types.StackerConfig
-	LeaveUnladen bool
-	NoCache      bool
-	Substitute   []string
-	OnRunFailure string
-	LayerTypes   []types.LayerType
-	OrderOnly    bool
-	SetupOnly    bool
-	Progress     bool
+	Config        types.StackerConfig
+	LeaveUnladen  bool
+	NoCache       bool
+	Substitute    []string
+	OnRunFailure  string
+	LayerTypes    []types.LayerType
+	OrderOnly     bool
+	SetupOnly     bool
+	Progress      bool
+	BuildinUserNS bool
 }
 
 // Builder is responsible for building the layers based on stackerfiles
@@ -272,7 +273,8 @@ func (b *Builder) updateOCIConfigForOutput(sf *types.Stackerfile, s types.Storag
 // Build builds a single stackerfile
 func (b *Builder) Build(s types.Storage, file string) error {
 	opts := b.opts
-
+	fmt.Println("opts in Build")
+	fmt.Println(opts)
 	if opts.NoCache {
 		os.RemoveAll(opts.Config.StackerDir)
 	}
@@ -399,7 +401,7 @@ func (b *Builder) Build(s types.Storage, file string) error {
 				log.Infof("missing some cached layer output types, building anyway")
 			}
 		}
-
+		fmt.Println("Setting setup Rootfs")
 		err = SetupRootfs(baseOpts)
 		if err != nil {
 			return err
@@ -410,7 +412,7 @@ func (b *Builder) Build(s types.Storage, file string) error {
 			return err
 		}
 		defer c.Close()
-
+		// aici ai ramas ionut 20jan
 		err = c.SetupLayerConfig(l, name)
 		if err != nil {
 			return err
@@ -433,7 +435,8 @@ func (b *Builder) Build(s types.Storage, file string) error {
 		if err != nil {
 			return err
 		}
-
+		// commands under run:
+		fmt.Printf("run: %v \n", run)
 		if len(run) != 0 {
 			rootfs := path.Join(opts.Config.RootFSDir, name, "rootfs")
 			shellScript := path.Join(opts.Config.StackerDir, "imports", name, ".stacker-run.sh")
@@ -516,7 +519,8 @@ func (b *Builder) Build(s types.Storage, file string) error {
 // BuildMultiple builds a list of stackerfiles
 func (b *Builder) BuildMultiple(paths []string) error {
 	opts := b.opts
-
+	fmt.Println("in buildmultiple")
+	fmt.Println(opts)
 	s, err := NewStorage(opts.Config)
 	if err != nil {
 		return err
@@ -530,6 +534,7 @@ func (b *Builder) BuildMultiple(paths []string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Printf("stackerfiles %v", stackerFiles)
 
 	// Initialize the DAG
 	dag, err := NewStackerFilesDAG(stackerFiles)
@@ -553,8 +558,9 @@ func (b *Builder) BuildMultiple(paths []string) error {
 		// User has requested only to see the build order, so skipping the actual build
 		return nil
 	}
-
+	fmt.Println(" \n before b.Build")
 	// Build all Stackerfiles
+	fmt.Printf(" %v  \n", sortedPaths)
 	for i, p := range sortedPaths {
 		log.Debugf("building: %d %s", i, p)
 

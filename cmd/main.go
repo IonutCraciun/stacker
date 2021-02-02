@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
@@ -17,6 +18,53 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/yaml.v2"
 )
+
+var createNamespace = cli.Command{
+	Name:   "userns",
+	Usage:  "builds a user namespace",
+	Action: doUserns,
+	//Flags:  initBuildFlags(),
+	//Before: beforeBuild,
+}
+
+func doUserns(ctx *cli.Context) error {
+	// binary, err := os.Readlink("/proc/self/exe")
+	// if err != nil {
+	// 	return err
+	// }
+	fmt.Println("in userns")
+
+	//cmd := exec.Command(binary, "--help")
+	//cmd := exec.Command("touch", "newfile.txt")
+	cmd := exec.Command("/bin/sh")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWNS |
+			// syscall.CLONE_NEWUTS |
+			// syscall.CLONE_NEWIPC |
+			// syscall.CLONE_NEWPID |
+			// syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWUSER,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			},
+		},
+	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
 
 var (
 	config  types.StackerConfig
@@ -59,6 +107,7 @@ func main() {
 		unprivSetupCmd,
 		gcCmd,
 		containerSetupCmd,
+		createNamespace,
 	}
 
 	configDir := os.Getenv("XDG_CONFIG_HOME")
@@ -104,6 +153,11 @@ func main() {
 			Usage: "storage type (one of \"btrfs\" or \"overlay\")",
 			// default to btrfs for now since it's less experimental
 			Value: "btrfs",
+		},
+		cli.BoolFlag{
+			Name:  "internal-userns",
+			Usage: "used to reexec stacker in a ns",
+			//Hidden: true,
 		},
 	}
 
@@ -156,6 +210,7 @@ func main() {
 		content, err := ioutil.ReadFile(ctx.String("config"))
 		if err == nil {
 			err = yaml.Unmarshal(content, &config)
+			fmt.Println(&config)
 			if err != nil {
 				return err
 			}
@@ -186,7 +241,10 @@ func main() {
 		}
 
 		config.StorageType = ctx.String("storage-type")
-
+		if ctx.Bool("internal-userns") {
+			config.Userns = true
+		}
+		fmt.Println(&config)
 		fi, err := os.Stat(config.CacheFile())
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -217,7 +275,7 @@ func main() {
 		stackerlog.Debugf("stacker version %s", version)
 		return nil
 	}
-
+	fmt.Println("os.Args: ", os.Args)
 	if err := app.Run(os.Args); err != nil {
 		format := "error: %v\n"
 		if config.Debug {

@@ -33,7 +33,8 @@ func NewContainer(sc types.StackerConfig, storage types.Storage, name string) (*
 	if !lxc.VersionAtLeast(2, 1, 0) {
 		return nil, errors.Errorf("stacker requires liblxc >= 2.1.0")
 	}
-
+	fmt.Printf("stacker config in new container %v \n", sc)
+	fmt.Printf("rootfsdir for new container %s \n", sc.RootFSDir)
 	lxcC, err := lxc.NewContainer(name, sc.RootFSDir)
 	if err != nil {
 		return nil, err
@@ -74,7 +75,7 @@ func NewContainer(sc types.StackerConfig, storage types.Storage, name string) (*
 				return nil, errors.Errorf("idmap unusable: %s", err)
 			}
 		}
-
+		// here it creates a sub gid sub uit for unprivileged container
 		for _, lxcConfig := range idmapSet.ToLxcString() {
 			err = c.setConfig("lxc.idmap", lxcConfig)
 			if err != nil {
@@ -225,6 +226,7 @@ func (c *Container) Execute(args string, stdin io.Reader) error {
 		c.sc.RootFSDir,
 		f.Name(),
 	)
+	fmt.Printf("commnd: %s %s %s %s %s", binary, "internal", c.c.Name(), c.sc.RootFSDir, f.Name())
 
 	cmd.Stdin = stdin
 	cmd.Stdout = os.Stdout

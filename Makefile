@@ -8,7 +8,7 @@ BATS?=bats
 BUILD_TAGS = exclude_graphdriver_devicemapper containers_image_openpgp
 
 stacker: $(GO_SRC) go.mod go.sum
-	go build -tags "$(BUILD_TAGS)" -ldflags "-X main.version=$(VERSION_FULL)" -o stacker ./cmd
+	go build -tags "$(BUILD_TAGS)" -ldflags "-X main.version=$(VERSION_FULL)" -o ../stackerbin ./cmd
 
 .PHONY: lint
 lint: $(GO_SRC)

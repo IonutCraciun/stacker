@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 
 	"github.com/anuvu/stacker"
+	"github.com/anuvu/stacker/container"
 	"github.com/anuvu/stacker/types"
 )
 
@@ -100,6 +104,25 @@ func doBuild(ctx *cli.Context) error {
 		return err
 	}
 
+	// if it's false run stacker in userns
+	fmt.Println("build --internal-userns:", args.BuildinUserNS, " ctx.Bool(internal-userns)", ctx.Bool("internal-userns")) // default is false
+	fmt.Println("args.config.userns ", args.Config.Userns)
+	if !args.Config.Userns {
+		binary, err := os.Readlink("/proc/self/exe")
+		if err != nil {
+			return err
+		}
+		err = container.MaybeRunInUserns([]string{binary, "--internal-userns", "build"}, "message")
+		//err := container.MaybeRunInUserns([]string{"ls", "-al"}, "string")
+		//err := container.RunInUserns2([]string{"--internal-userns", "build"}, "message")
+		return err
+	}
+
 	builder := stacker.NewBuilder(&args)
+	fmt.Println("argss")
+	fmt.Println(args)
+	// fmt.Println("builder")
+	// fmt.Println(builder)
+	fmt.Println(ctx.String("stacker-file"))
 	return builder.BuildMultiple([]string{ctx.String("stacker-file")})
 }

@@ -6,12 +6,59 @@ import (
 	"os/exec"
 	"os/user"
 	"strconv"
+	"syscall"
 
 	"github.com/anuvu/stacker/log"
 	"github.com/anuvu/stacker/types"
 	"github.com/lxc/lxd/shared/idmap"
 	"github.com/pkg/errors"
 )
+
+// RunInUserns2 run commands in userns using systemcalls.
+func RunInUserns2(userCmd []string, msg string) error {
+	binary, err := os.Readlink("/proc/self/exe")
+	if err != nil {
+		return err
+	}
+	fmt.Println("msg: ", msg)
+	fmt.Println("binary: ", binary)
+	fmt.Println("usercmd", userCmd)
+	cmd := exec.Command(binary, userCmd...)
+	// cmd := []string{
+	// 	binary,
+	// 	// "--oci-dir", config.OCIDir,
+	// 	// "--roots-dir", config.RootFSDir,
+	// 	// "--stacker-dir", config.StackerDir,
+	// 	// "--storage-type", config.StorageType,
+	// }
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWNS |
+			// syscall.CLONE_NEWUTS |
+			// syscall.CLONE_NEWIPC |
+			// syscall.CLONE_NEWPID |
+			// syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWUSER,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			},
+		},
+	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
 
 func ResolveCurrentIdmapSet() (*idmap.IdmapSet, error) {
 	currentUser, err := user.Current()
@@ -61,8 +108,9 @@ func ResolveIdmapSet(user *user.User) (*idmap.IdmapSet, error) {
 				return nil, errors.Wrapf(err, "failed adding idmap entry: %v", hm)
 			}
 		}
+		fmt.Printf("idmap entries %v \n", hostMap)
 	}
-
+	fmt.Printf("idmap set %v \n", idmapSet)
 	return idmapSet, nil
 }
 
@@ -88,7 +136,9 @@ func RunInUserns(idmapSet *idmap.IdmapSet, userCmd []string, msg string) error {
 
 	args = append(args, "--")
 	args = append(args, userCmd...)
-
+	fmt.Println("args in RunInUserns")
+	fmt.Println(args)
+	fmt.Println("end----")
 	cmd := exec.Command("lxc-usernsexec", args...)
 
 	cmd.Stdin = os.Stdin

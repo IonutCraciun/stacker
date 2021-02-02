@@ -92,11 +92,13 @@ func (is *ImageSource) ParseTag() (string, error) {
 		return is.Tag, nil
 	case DockerLayer:
 		url, err := NewDockerishUrl(is.Url)
+		fmt.Printf("dockerish url: %v \n", url)
 		if err != nil {
 			return "", err
 		}
 
 		if url.Path != "" {
+			// get name of the image from the link /tsda/atom/image1:1.2.3
 			return path.Base(strings.Split(url.Path, ":")[0]), nil
 		}
 

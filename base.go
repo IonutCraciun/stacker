@@ -55,6 +55,7 @@ func GetBase(o BaseLayerOpts) error {
 // If the layer is a build only layer, this code simply initializes the
 // filesystem in roots to the built tag's filesystem.
 func SetupRootfs(o BaseLayerOpts) error {
+	fmt.Printf("in setuprootfs %v \n", o)
 	o.Storage.Delete(o.Name)
 	if o.Layer.From.Type == types.BuiltLayer {
 		// For built type images, we already have the base fs content
@@ -67,7 +68,7 @@ func SetupRootfs(o BaseLayerOpts) error {
 	if err := o.Storage.Create(o.Name); err != nil {
 		return err
 	}
-
+	fmt.Printf("layer from type: %v\n", o.Layer.From.Type)
 	switch o.Layer.From.Type {
 	case types.TarLayer:
 		err := o.Storage.SetupEmptyRootfs(o.Name)
@@ -139,15 +140,17 @@ func setupContainersImageRootfs(o BaseLayerOpts) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Printf("cacheTag: %s, o.Name: %s \n", cacheTag, o.Name)
 	return o.Storage.Unpack(cacheTag, o.Name)
 }
 
 func setupTarRootfs(o BaseLayerOpts) error {
 	// initialize an empty image, then extract it
 	cacheDir := path.Join(o.Config.StackerDir, "layer-bases")
-	tar := path.Join(cacheDir, path.Base(o.Layer.From.Url))
 
+	tar := path.Join(cacheDir, path.Base(o.Layer.From.Url))
+	fmt.Println("IN SETUP TAR ROOTFS")
+	fmt.Printf("tar path %v\n", tar)
 	layerPath := o.Storage.TarExtractLocation(o.Name)
 	return container.RunInternalGoSubcommand(o.Config, []string{
 		"unpack-tar",
